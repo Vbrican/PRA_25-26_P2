@@ -7,7 +7,6 @@
 
 #include "Dict.h"
 #include "TableEntry.h"
-
 #include "../../P1/PRA_25-26_P1/ListLinked.h"
 
 template <typename V>
@@ -24,41 +23,45 @@ private:
         return sum % max;
     }
 
+    int findPosInBucket(int idx, const std::string& key) {
+        TableEntry<V> probe(key);
+        int sz = table[idx]->size();
+        for (int i = 0; i < sz; ++i) {
+            if (table[idx]->get(i) == probe) return i;
+        }
+        return -1;
+    }
+
 public:
-    HashTable(int size) : n(0), max(size), table(nullptr) {
+    HashTable(int size) : n(0), max(size) {
         table = new ListLinked<TableEntry<V>>*[max];
         for (int i = 0; i < max; ++i) table[i] = new ListLinked<TableEntry<V>>();
     }
 
     ~HashTable() {
-        if (table) {
-            for (int i = 0; i < max; ++i) delete table[i];
-            delete[] table;
-        }
+        for (int i = 0; i < max; ++i) delete table[i];
+        delete[] table;
     }
 
     void insert(std::string key, V value) override {
         int idx = h(key);
-        TableEntry<V> probe(key);
-        int pos = table[idx]->search(probe);
-        if (pos != -1) throw std::runtime_error("key already exists");
-        table[idx]->add(TableEntry<V>(key, value));
+        if (findPosInBucket(idx, key) != -1)
+            throw std::runtime_error("Key '" + key + "' already exists!");
+        table[idx]->insert(table[idx]->size(), TableEntry<V>(key, value));
         ++n;
     }
 
     V search(std::string key) override {
         int idx = h(key);
-        TableEntry<V> probe(key);
-        int pos = table[idx]->search(probe);
-        if (pos == -1) throw std::runtime_error("key not found");
+        int pos = findPosInBucket(idx, key);
+        if (pos == -1) throw std::runtime_error("Key '" + key + "' not found!");
         return table[idx]->get(pos).value;
     }
 
     V remove(std::string key) override {
         int idx = h(key);
-        TableEntry<V> probe(key);
-        int pos = table[idx]->search(probe);
-        if (pos == -1) throw std::runtime_error("key not found");
+        int pos = findPosInBucket(idx, key);
+        if (pos == -1) throw std::runtime_error("Key '" + key + "' not found!");
         TableEntry<V> removed = table[idx]->remove(pos);
         --n;
         return removed.value;
@@ -77,14 +80,13 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream &out, const HashTable<V> &th) {
+        out << "HashTable [entries: " << th.n << ", capacity: " << th.max << "]\n";
+        out << "==============\n\n";
         for (int i = 0; i < th.max; ++i) {
-            out << i << ":";
-            int sz = th.table[i]->size();
-            for (int j = 0; j < sz; ++j) {
-                out << " " << th.table[i]->get(j);
-            }
-            out << "\n";
+            out << "== Cubeta " << i << " ==\n\n";
+            out << *(th.table[i]) << "\n\n";
         }
+        out << "==============\n";
         return out;
     }
 };
