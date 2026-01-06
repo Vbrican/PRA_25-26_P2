@@ -14,77 +14,75 @@ class BSTreeDict : public Dict<V> {
 
 private:
     BSTree<TableEntry<V>>* tree;
+    int nEntries;
 
 public:
-    // Constructor: crea ABB vacío con memoria dinámica
-    BSTreeDict() {
-        tree = new BSTree<TableEntry<V>>();
-    }
+    BSTreeDict() : tree(new BSTree<TableEntry<V>>()), nEntries(0) {}
 
-    // Destructor: libera la memoria del ABB
     ~BSTreeDict() {
         delete tree;
         tree = nullptr;
     }
 
-    // entries(): devuelve todas las entradas del diccionario
-    // OJO: esto depende de cómo lo tengáis en BSTree.
-    // Variante típica A: BSTree tiene entries() / inOrder() que devuelve List<T>* o vector<T>
-    // Variante típica B: Dict exige List<TableEntry<V>>* y BSTree tiene inOrder()
-    auto entries() -> decltype(this->tree->entries()) {
-        return tree->entries();
+    int entries() override {
+        return nEntries;
     }
 
-    // insert(key, value): delega en tree->insert(TableEntry)
     void insert(std::string key, V value) override {
-        TableEntry<V> e(key, value);
-        tree->insert(e);
+        TableEntry<V> probe(key);
+
+        bool exists = true;
+        try {
+            tree->search(probe);
+        } catch (const std::runtime_error&) {
+            exists = false;
+        }
+
+        if (exists) {
+            throw std::runtime_error("Duplicated element!");
+        }
+
+        tree->insert(TableEntry<V>(key, value));
+        nEntries++;
     }
 
-    // search(key): devuelve el valor asociado o lanza excepción si no está
     V search(std::string key) override {
-        TableEntry<V> probe(key, V{});
+        TableEntry<V> probe(key);
 
-        // --- Ajusta ESTO a tu BSTree.h ---
-        // Caso 1 (muy común): bool BSTree::search(const T& x, T& outFound)
-        // TableEntry<V> found;
-        // if (!tree->search(probe, found)) throw std::out_of_range("Key not found");
-        // return found.value;
-
-        // Caso 2: T* BSTree::search(const T& x)  (devuelve puntero a elemento)
-        auto ptr = tree->search(probe);
-        if (ptr == nullptr) {
-            throw std::out_of_range("Key not found");
-        }
-        return ptr->value;
-    }
-
-    // remove(key): elimina la entrada o lanza excepción si no existe
-    void remove(std::string key) override {
-        TableEntry<V> probe(key, V{});
-
-        // Caso típico: bool remove(const T&)
-        bool ok = tree->remove(probe);
-        if (!ok) {
-            throw std::out_of_range("Key not found");
+        try {
+            return tree->search(probe).value;
+        } catch (const std::runtime_error&) {
+            throw std::runtime_error("Element not found!");
         }
     }
 
-    // operator[]: interfaz rápida a search(key)
+    V remove(std::string key) override {
+        TableEntry<V> probe(key);
+
+        V removedValue;
+        try {
+            removedValue = tree->search(probe).value;
+        } catch (const std::runtime_error&) {
+            throw std::runtime_error("Element not found!");
+        }
+
+        try {
+            tree->remove(probe);
+        } catch (const std::runtime_error&) {
+            throw std::runtime_error("Element not found!");
+        }
+
+        nEntries--;
+        return removedValue;
+    }
+
     V operator[](std::string key) {
         return search(key);
     }
 
-    // Imprimir el diccionario: normalmente delegas en el << del BSTree o imprimes entries()
-    friend std::ostream& operator<<(std::ostream& out, const BSTreeDict<V>& bs) {
-        // Si BSTree ya tiene operator<<:
-        out << *(bs.tree);
+    friend std::ostream& operator<<(std::ostream &out, const BSTreeDict<V> &bs) {
+        out << "[ " << *(bs.tree) << " ]";
         return out;
-
-        // Alternativa si NO hay << en BSTree:
-        // auto ents = bs.tree->entries();
-        // for (...) out << ...;
-        // return out;
     }
 };
 
